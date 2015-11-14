@@ -190,13 +190,12 @@ void hsvFinder(int argc, char* argv[]){
 
 Mat hsvImage;
 Mat origImage;
+Cell* cell = 0;
+vector<Cell*> lymphocyts;
 
 
 
 void findingContours(const Mat& src) {
-	Cell* cell = 0;
-	vector<Cell*> lymphocyts;
-
 	Mat thresholdOutput;
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
@@ -208,18 +207,14 @@ void findingContours(const Mat& src) {
 
 	/// Approximate contours to polygons + get bounding rects and circles
 	vector<vector<Point> > contoursPoly(contours.size());
-	vector<Rect> boundRect(contours.size());
 	vector<Point2f>center(contours.size());
 	vector<float>radius(contours.size());
 
 	for (int i = 0; i < contours.size(); i++)
 	{
 		approxPolyDP(Mat(contours[i]), contoursPoly[i], 3, true);
-		boundRect[i] = boundingRect(Mat(contoursPoly[i]));
 		minEnclosingCircle((Mat)contoursPoly[i], center[i], radius[i]);
 	}
-
-	int counter = 0;
 
 	Mat drawing = Mat::zeros(thresholdOutput.size(), CV_8UC3);
 
@@ -232,27 +227,21 @@ void findingContours(const Mat& src) {
 			Point coordinateOfContour = center[i];
 			cell = new Lymphocytes(coordinateOfContour.x, coordinateOfContour.y);
 			lymphocyts.push_back(cell);
-			Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));															  // нарисуем контур
-			drawContours(drawing, contoursPoly, i, color, 1, 8, vector<Vec4i>(), 0, Point());
-			rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0);
-
-			circle(origImage, Point(cell[counter].getX(), cell[counter].getY()), 40, color, 2, 8, 0);
-
-			cout << endl << "contour with coordinates: x = " << cell[counter].getX() << " y = " << cell[counter].getY();
-			counter++;
+			cout << endl << lymphocyts.size();
 		}
 	}
+	for (register int i = 0; i < lymphocyts.size();i++) {
+		circle(origImage, Point(lymphocyts[i]->getX(), lymphocyts[i]->getY()), 40, Scalar(0,0,0), 2, 8, 0);
+		cout << endl << "contour with coordinates: x = " << lymphocyts[i]->getX() << " y = " << lymphocyts[i]->getY();
+	}
 	
-	/// Show in a window
-	namedWindow("Contours", CV_WINDOW_AUTOSIZE);
-	imshow("Contours", drawing);
-	namedWindow("Contours1", CV_WINDOW_AUTOSIZE);
-	imshow("Contours1", origImage);
+	namedWindow("Cells", CV_WINDOW_AUTOSIZE);
+	imshow("Cells", origImage);
 	
 	waitKey(0);
 	delete cell;
-	for (register int i = 0; i < lymphocyts.size(); i++) {
-		delete(lymphocyts[i]);
+	for (register int i = 0; i < lymphocyts.size()-1; i++) {
+		delete lymphocyts[i];
 	}
 	lymphocyts.clear();
 }
