@@ -69,7 +69,7 @@ void myTrackbarVmax(int pos) {
 	cvInRangeS(v_plane, cvScalar(Vmin), cvScalar(Vmax), v_range);
 }
 
-void hsvFinder(int argc, char* argv[]){
+void hsvFinder(int argc, char* argv[]) {
 	// имя картинки задаётся первым параметром
 	char* filename = argc == 2 ? argv[1] : "111.jpg";
 	// получаем картинку
@@ -131,7 +131,7 @@ void hsvFinder(int argc, char* argv[]){
 	//
 	// разместим окна по рабочему столу
 	//
-	if (image->width <1920 / 4 && image->height<1080 / 2) {
+	if (image->width < 1920 / 4 && image->height < 1080 / 2) {
 		cvMoveWindow("original", 0, 0);
 		cvMoveWindow("H", image->width + 10, 0);
 		cvMoveWindow("S", (image->width + 10) * 2, 0);
@@ -172,7 +172,7 @@ void hsvFinder(int argc, char* argv[]){
 	printf("[V] %d x %d\n", Vmin, Vmax);
 
 
-	cvSaveImage("6.jpg", hsv_and);
+	//cvSaveImage("6.jpg", hsv_and);
 
 	// освобождаем ресурсы
 	cvReleaseImage(&image);
@@ -190,15 +190,18 @@ void hsvFinder(int argc, char* argv[]){
 
 Mat hsvImage;
 Mat origImage;
+Mat srcImage;
 Cell* cell = 0;
 vector<Cell*> lymphocyts;
-
+int threshArea = 328;
 
 
 void findingContours(const Mat& src) {
 	Mat thresholdOutput;
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
+	int circleRadius = 30;
+
 
 	/// Detect edges using Threshold
 	threshold(src, thresholdOutput, thresh, maxThresh, THRESH_BINARY);
@@ -218,74 +221,101 @@ void findingContours(const Mat& src) {
 
 	Mat drawing = Mat::zeros(thresholdOutput.size(), CV_8UC3);
 
-	for (int i = 0; i< contours.size(); i++)
+	for (int i = 0; i < contours.size(); i++)
 	{
 		double area = fabs(contourArea(contours[i]));
 		double perim = arcLength(contours[i], true);
 
-		if (area > 10) {
+		if (area > threshArea) {
 			Point coordinateOfContour = center[i];
 			cell = new Lymphocytes(coordinateOfContour.x, coordinateOfContour.y);
 			lymphocyts.push_back(cell);
-			cout << endl << lymphocyts.size();
+			cout << endl << "area " << area;
+
+			cout << endl << "count " << lymphocyts.size();
 		}
 	}
 	for (register int i = 0; i < lymphocyts.size();i++) {
-		circle(origImage, Point(lymphocyts[i]->getX(), lymphocyts[i]->getY()), 40, Scalar(0,0,0), 2, 8, 0);
+		circle(origImage, Point(lymphocyts[i]->getX(), lymphocyts[i]->getY()), circleRadius, Scalar(0, 0, 0), 2, 8, 0);
 		cout << endl << "contour with coordinates: x = " << lymphocyts[i]->getX() << " y = " << lymphocyts[i]->getY();
 	}
-	
+
 	namedWindow("Cells", CV_WINDOW_AUTOSIZE);
 	imshow("Cells", origImage);
-	
-	waitKey(0);
-	delete cell;
-	for (register int i = 0; i < lymphocyts.size()-1; i++) {
-		delete lymphocyts[i];
+
+	if (!lymphocyts.empty()) {
+		for (register int i = 0; i < lymphocyts.size() - 1; i++) {
+			delete lymphocyts[i];
+		}
+		lymphocyts.clear();
 	}
-	lymphocyts.clear();
 }
 
 void myHSV(const Mat& src) {
-	
+
 	Mat tempHsvImage;
 	cvtColor(src, hsvImage, COLOR_BGR2HSV);
-			
+
 	Mat upperRange;
 	Mat lowerRange;
 
-	inRange(hsvImage, cv::Scalar(121, 179, 195), cv::Scalar(141, 255, 229), upperRange);
+	inRange(hsvImage, cv::Scalar(122, 140, 100), cv::Scalar(145, 255, 255), upperRange);
 	//inRange(hsvImage, cv::Scalar(100, 135, 100), cv::Scalar(255, 255, 255), lowerRange);
-	
+
 	Mat lympho;
-	
+
 	//addWeighted(lowerRange, 1.0, upperRange, 1.0, 0.0, lympho);
 	//GaussianBlur(upperRange, upperRange, cv::Size(9, 9), 3, 3);
-	
+
 	namedWindow("hsv image", cv::WINDOW_AUTOSIZE);
 	imshow("hsv image", upperRange);
-	
-	
+
+
 	hsvImage = upperRange;
-	
-	waitKey(0);
+
+	//waitKey(0);
 	//imwrite("11.jpg", lower_red_hue_range);
 }
 
+void loadFromDir(char* argv[]) {
 
-int main(int argc, char* argv[])
-{
-	char* filename = argc == 2 ? argv[1] : "111.jpg";
+	string fullPath = "";
+	string dirPath = argv[1];
 
-	Mat srcImage = imread(filename);
-	origImage = srcImage.clone();
+	struct dirent *dentry = NULL;
+	char *ext = NULL;
+	DIR *d = opendir(argv[1]);
+	while ((dentry = readdir(d)) != NULL)
+	{
+		ext = dentry->d_name + (strlen(dentry->d_name) - 4);
+		if (ext > dentry->d_name)
+			if ((strncmp(ext, ".png", 4) == 0) ||
+				(strncmp(ext, ".jpg", 4) == 0)) {
+				fullPath = dirPath + dentry->d_name;
+				srcImage = imread(fullPath);
+				origImage = srcImage;
 
-	namedWindow("src", cv::WINDOW_AUTOSIZE);
-	imshow("src", srcImage);
+				namedWindow("src", cv::WINDOW_AUTOSIZE);
+				imshow("src", srcImage);
 
-	myHSV(srcImage);
-	findingContours(hsvImage);
-	
+				myHSV(srcImage);
+				findingContours(hsvImage);
+				cout << endl << dentry->d_name << endl;
+
+				char c = waitKey(0);
+				if (c == 27) { // если нажата ESC - выходим
+					break;
+				}
+			}
+	}
+}
+
+int main(int argc, char* argv[]) {
+	if (argc != 2) {
+		argv[1] = "./";
+	}
+	loadFromDir(argv);
+
 	//hsvFinder(2,argv);
 	return 0;
 }
