@@ -12,7 +12,7 @@
 #include <tchar.h>
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
-
+#include "dirent.h"
 using namespace std;
 using namespace cv;
 
